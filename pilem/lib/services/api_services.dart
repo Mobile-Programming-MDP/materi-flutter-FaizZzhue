@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 class ApiService {
   static const String baseUrl = "https://api.themoviedb.org/3";
   //ganti dengan APIKey masing-masing
-  static const String apiKey = "e91a2c575ab069fb724d625d7c046926";
+  static const String apiKey = "0bc8d1f981333373e4024a04fb009ed7";
   //1. mengambil list movie yang saat ini tayang
   Future<List<Map<String, dynamic>>> getAllMovies() async {
     final response = await http.get(
