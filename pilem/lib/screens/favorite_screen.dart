@@ -12,60 +12,55 @@ class FavoriteScreen extends StatefulWidget {
 }
 
 class _FavoriteScreenState extends State<FavoriteScreen> {
+  List<Movie> favoriteMovies = [];
 
-  List<Movie> _favorites = [];
-
-  void _loadFavorites() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final Set<String> keys = prefs.getKeys();
-    List<Movie> favorites = [];
-    for (String key in keys) {
-      if (key.startsWith('movie_')) {
-        final String? movieJson = prefs.getString(key);
-        if (movieJson != null) {
-          Movie movie = Movie.fromJson(json.decode(movieJson));
-          movie.isFavorite = true;
-          favorites.add(movie);
-        }
-      }
-    }
+  Future<void> loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> favList = prefs.getStringList('favorites') ?? [];
     setState(() {
-      _favorites = favorites;
+      favoriteMovies =
+          favList.map((movie) => Movie.fromJson(jsonDecode(movie))).toList();
     });
+  }
+
+  Future<void> removeFavorite(Movie movie) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> favList = prefs.getStringList('favorites') ?? [];
+    favList.removeWhere((item) {
+      final decoded = Movie.fromJson(jsonDecode(item));
+      return decoded.id == movie.id;
+    });
+    await prefs.setStringList('favorites', favList);
+    loadFavorites();
   }
 
   @override
   void initState() {
     super.initState();
-    _loadFavorites();
+    loadFavorites();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadFavorites();
+    loadFavorites();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Favorite Movies')),
-      body: _favorites.isEmpty
+      body: favoriteMovies.isEmpty
           ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Icon(Icons.favorite_border, size: 80, color: Colors.grey),
-                  // SizedBox(height: 16),
-                  Text('Belum ada film favorit',
-                      style: TextStyle(fontSize: 16, color: Colors.grey)),
-                ],
+              child: Text(
+                'Belum ada film favorit',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
             )
           : ListView.builder(
-              itemCount: _favorites.length,
+              itemCount: favoriteMovies.length,
               itemBuilder: (context, index) {
-                final Movie movie = _favorites[index];
+                final Movie movie = favoriteMovies[index];
                 return ListTile(
                   leading: Image.network(
                     'https://image.tmdb.org/t/p/w500${movie.posterPath}',
@@ -75,12 +70,16 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                   ),
                   title: Text(movie.title),
                   subtitle: Text(movie.releaseDate),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.favorite, color: Colors.red),
+                    onPressed: () => removeFavorite(movie),
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => DetailScreen(movie: movie),
                     ),
-                  ).then((_) => _loadFavorites()),
+                  ).then((_) => loadFavorites()),
                 );
               },
             ),
