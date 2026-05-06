@@ -1,9 +1,9 @@
 import 'dart:convert';
-
 import 'package:furab/models/post.dart';
 import 'package:furab/service/post_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -17,41 +17,40 @@ class AddPostScreen extends StatefulWidget {
 class _AddPostScreenState extends State<AddPostScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   String? _base64Image;
-  double? _latitude;
-  double? _longitude;
-  String? _category;
-  bool _isSubmitting = false;
-  bool _isGettingLocation = false;
+  String? _latitude;
+  String? _longitude;
   List<String> get categories {
     return [
       'Jalan Rusak',
       'Lampu Jalan Mati',
       'Lawan Arah',
       'Merokok di Jalan',
-      'Tidak Pakai Helm',
+      'Tidak Pakai Helm'
     ];
   }
+  String? _category;
+  bool _isSubmitting = false;
+  bool _isGettingLocation = false;
 
   //1.Fungsi pick, compress and convert Image
   Future<void> pickImageAndConvert() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 20, 
-    );
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
     if (image != null) {
       final bytes = await image.readAsBytes();
+      final compressedImage = await FlutterImageCompress.compressWithList(
+        bytes,
+        quality: 50,
+      );
       setState(() {
-        _base64Image = base64Encode(bytes);
+        _base64Image = base64Encode(compressedImage);
       });
-    }
+    } 
   }
-
+  
   //2. Fungsi Get Geo Location
   Future<void> _getLocation() async {
-    setState(() {
-      _isGettingLocation = true;
-    });
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -66,9 +65,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.deniedForever ||
             permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Izin lokasi ditolak.")));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Izin lokasi ditolak.")),
+          );
           return;
         }
       }
@@ -78,51 +77,46 @@ class _AddPostScreenState extends State<AddPostScreen> {
       ).timeout(const Duration(seconds: 10));
 
       setState(() {
-        _latitude = position.latitude;
-        _longitude = position.longitude;
+        _latitude = position.latitude.toString();
+        _longitude = position.longitude.toString();
       });
     } catch (e) {
       debugPrint('Failed to retrieve location: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal mengambil lokasi.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal mengambil lokasi.")),
+      );
       setState(() {
         _latitude = null;
         _longitude = null;
       });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGettingLocation = false;
-        });
-      }
     }
   }
 
   //3. Fungsi tampil pilihan kategori
-  void _showCategorySelect() {
+  void _showCategorySelect(){
     showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
+      context: context, 
+      builder: (BuildContext context){
         return ListView(
           shrinkWrap: true,
-          children: categories.map((cat) {
-            return ListTile(
-              title: Text(cat),
-              onTap: () {
-                setState(() {
-                  _category = cat;
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
+          children: 
+            categories.map((cat) {
+              return ListTile(
+                title: Text(cat),
+                onTap: (){
+                  setState(() {
+                    _category = cat;
+                  });
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
         );
-      },
+      }
     );
   }
 
-  //4. Fungsi Widget tampil gambar
+   //4. Fungsi Widget tampil gambar
   Widget _buildImagePreview() {
     if (_base64Image == null) {
       return Container(
@@ -163,76 +157,40 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   //6. Fungsi submit Post
   Future<void> _submitPost() async {
-    if (_base64Image == null) {
+    if(_base64Image == null || _descriptionController.text.isEmpty){
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih gambar terlebih dahulu.')),
-      );
-      return;
+          SnackBar(content: Text("Pilih gambar dan masukkan deskripsi")),
+        );
     }
-
-    if (_category == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih kategori terlebih dahulu.')),
-      );
-      return;
-    }
-
-    if (_descriptionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan deskripsi terlebih dahulu.')),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    final fullName = FirebaseAuth.instance.currentUser?.displayName;
-
-    try {
-      if (_latitude == null || _longitude == null) {
-        await _getLocation();
-      }
-
-      if (_latitude == null || _longitude == null) {
-        throw Exception("Lokasi gagal didapat");
-      }
-
-      await PostService.addPost(
+    //ambil user id dan full name dari firebaseauth
+    final userId = FirebaseAuth.instance.currentUser?.uid; 
+    final fullName = FirebaseAuth.instance.currentUser?.displayName; 
+    try{
+      _getLocation();
+      PostService.addPost(
         Post(
           image: _base64Image,
           description: _descriptionController.text,
           category: _category,
-          latitude: _latitude,
-          longitude: _longitude,
+          latitude: _latitude as String,
+          longitude: _longitude as String,
           userId: userId,
           userFullName: fullName,
-        ),
-      );
-
-      if (!mounted) return;
-
+        )
+      ).whenComplete((){
+        Navigator.of(context).pop();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Posting berhasil disimpan")),
+        SnackBar(content: Text("Posting berhasil disimpan")),
       );
-
-      Navigator.of(context).pop();
-    } catch (e) {
+    }catch(e){
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Posting gagal: $e")),
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+        SnackBar(content: Text("Posting gagal disimpan : $e")),
+      );  
     }
   }
 
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Add new post")),

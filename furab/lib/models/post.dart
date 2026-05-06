@@ -7,8 +7,8 @@ class Post {
   String? category;
   Timestamp? createdAt;
   Timestamp? updatedAt;
-  double? latitude;
-  double? longitude;
+  String? latitude;
+  String? longitude;
   String? userId;
   String? userFullName;
 

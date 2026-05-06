@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:furab/models/post.dart';
+import 'package:furab/screens/map_detail_screen.dart';
 import 'package:furab/service/post_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -117,6 +118,19 @@ class DetailScreen extends StatelessWidget {
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MapDetailScreen(post: post),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.map),
+                      label: const Text('View on Map'),
                     ),
                   ],
                 ],
