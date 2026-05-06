@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-//install depenencies flutter_map dan latlong2
 class MapDetailScreen extends StatelessWidget {
   final Post post;
   const MapDetailScreen({super.key, required this.post});
